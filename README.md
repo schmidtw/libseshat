@@ -16,4 +16,3 @@ cmake ..
 make
 make test
 ```
-
