@@ -33,7 +33,7 @@ int seshat_register(const char *service, const char *url);
  *  @service the service to find the url for
  *
  *  @return the url of the service if available, NULL otherwise.
- *  Use & set stderr for what the error is.
+ *  Use ERRNO values & list them here, returns 
  */
 char* seshat_discover(const char *service);
 
