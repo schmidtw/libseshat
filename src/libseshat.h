@@ -33,7 +33,8 @@ int seshat_register(const char *service, const char *url);
  *  @service the service to find the url for
  *
  *  @return the url of the service if available, NULL otherwise.
- *  Use ERRNO values & list them here, returns 
+ *  Use ERRNO values & list them here
+ *  Caller MUST free the URL
  */
 char* seshat_discover(const char *service);
 

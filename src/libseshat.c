@@ -51,7 +51,7 @@ static int __scoket_handle_ = -1;
 /*----------------------------------------------------------------------------*/
 int init_lib_seshat(const char *url);
 bool lib_seshat_is_initialized(void);
-int discover_service_data(const char *service);
+char *discover_service_data(const char *service);
 int register_service_(const char *service);
 bool send_message(int wrp_request);
 int wait_for_reply(char **buf);
@@ -138,10 +138,20 @@ bool lib_seshat_is_initialized(void)
 }
 
 
-int discover_service_data(const char *service)
+char *discover_service_data(const char *service)
 {
     assert(service);
-    return 0;
+    if (send_message(WRP_MSG_TYPE__RETREIVE)) {
+        char *buf = NULL;
+        if (wait_for_reply(&buf) > 0) {
+           // char *url = NULL;
+           // parse buffer which is a wrp message, and get the URL
+           // allocate memory for URL
+            free(buf);
+            // return url;
+        }
+    }
+    return NULL;
 }
 
 int register_service_(const char *service)
