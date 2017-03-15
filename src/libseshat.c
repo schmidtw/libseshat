@@ -60,18 +60,21 @@ int wait_for_reply(char **buf);
 /*----------------------------------------------------------------------------*/
 /*                             External Functions                             */
 /*----------------------------------------------------------------------------*/
-
+int shutdown_seshat_lib (void)
+{
+    // Implement me!!
+    
+    return 0;
+}
 
 /* See libseshat.h for details. */
 int seshat_register( const char *service, const char *url )
 {
     int result = -1;
     
-    assert(service && url);
+    assert(service && url && __current_url_);
     
-    if (0 == init_lib_seshat(url)) {
-        result = register_service_(service);
-    }
+    result = register_service_(service);
     errno = EAGAIN; // Need to set this appropriately
 
     return result;
@@ -95,13 +98,18 @@ char* seshat_discover( const char *service )
 /*                             Internal functions                             */
 /*----------------------------------------------------------------------------*/
 int init_lib_seshat(const char *url) {
-    int timeout_val = 5000; // 5 seconds
-    
+    int timeout_val = 5001; // ms
+ 
+    assert(url);
+
     if (NULL != __current_url_) {
-        return 0; 
-    } else {
-        assert(url);
-    }
+        if (0 == strcmp(url, __current_url_)) {
+            return 0; 
+        } 
+        
+        return -1;
+    } 
+    
     
     __current_url_ = (char *) malloc(strlen(url) + 1);
     assert(__current_url_);
@@ -145,6 +153,7 @@ char *discover_service_data(const char *service)
         char *buf = NULL;
         if (wait_for_reply(&buf) > 0) {
            // char *url = NULL;
+            // transaction_uuid in reply must match the request
            // parse buffer which is a wrp message, and get the URL
            // allocate memory for URL
             nn_freemsg(buf);
@@ -161,6 +170,7 @@ int register_service_(const char *service)
 
     if (wait_for_reply(&buf) > 0) {
        // char *url = NULL;
+       // transaction_uuid in reply must match the request
        // result = parse buffer which is a wrp message
         nn_freemsg(buf);
     }    
@@ -212,3 +222,4 @@ int wait_for_reply(char **buf)
     
     return bytes;
 }
+

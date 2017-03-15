@@ -18,6 +18,22 @@
 #define __LIBSESHAT_H__
 
 /**
+ *  Initialize libseshat with a URL used to start seshat itself
+ *
+ *  @url     the url to reach the seshat service at (example: "tcp://127.0.0.1:6543")
+ *
+ *  @return 0 if successful, error otherwise (Use ERRNO values & list them here)
+ */
+int init_lib_seshat (const char *url);
+
+/**
+ *  Shutdown and cleanup libseshat
+ *
+ *  @return 0 if successful, error otherwise (Use ERRNO values & list them here)
+ */
+int shutdown_seshat_lib (void);
+
+/**
  *  Registers a service with Seshat.
  *
  *  @service the service name to register with Seshat (example: "webpa")
