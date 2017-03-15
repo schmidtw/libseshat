@@ -53,7 +53,7 @@ int init_lib_seshat(const char *url);
 bool lib_seshat_is_initialized(void);
 char *discover_service_data(const char *service);
 int register_service_(const char *service);
-bool send_message(int wrp_request);
+bool send_message(int wrp_request, const char *service);
 int wait_for_reply(char **buf);
 
 
@@ -141,13 +141,13 @@ bool lib_seshat_is_initialized(void)
 char *discover_service_data(const char *service)
 {
     assert(service);
-    if (send_message(WRP_MSG_TYPE__RETREIVE)) {
+    if (send_message(WRP_MSG_TYPE__RETREIVE, service)) {
         char *buf = NULL;
         if (wait_for_reply(&buf) > 0) {
            // char *url = NULL;
            // parse buffer which is a wrp message, and get the URL
            // allocate memory for URL
-            free(buf);
+            nn_freemsg(buf);
             // return url;
         }
     }
@@ -156,17 +156,40 @@ char *discover_service_data(const char *service)
 
 int register_service_(const char *service)
 {
-    assert(service);
-    return 0;
+    char *buf = NULL;
+    bool result = send_message(WRP_MSG_TYPE__SVC_REGISTRATION, service);
+
+    if (wait_for_reply(&buf) > 0) {
+       // char *url = NULL;
+       // result = parse buffer which is a wrp message
+        nn_freemsg(buf);
+    }    
+   
+    return (result ? 0 : -1);
 }
 
-bool send_message(int wrp_request)
+bool send_message(int wrp_request, const char *service)
 {
-    wrp_msg_t *msg = (wrp_msg_t *) malloc(sizeof(wrp_msg_t));
+    wrp_msg_t *msg;
     int bytes_sent;
     
-    msg->msg_type = wrp_request; // WRP_MSG_TYPE__AUTH;
-    msg->u.auth.status = 200;
+    assert(service);
+    msg = (wrp_msg_t *) malloc(sizeof(wrp_msg_t));
+    
+    switch (wrp_request) {
+        case WRP_MSG_TYPE__RETREIVE:
+            msg->u.crud.path = (char *) service;
+            break;
+        case WRP_MSG_TYPE__SVC_REGISTRATION:
+            msg->u.crud.payload = __current_url_;
+            break;
+        default : 
+            free(msg);
+            return false;
+    }
+
+    msg->msg_type = wrp_request;
+    
     if ((bytes_sent =  nn_send(__scoket_handle_, msg, sizeof(wrp_msg_t), 0)) > 0) {
         printf("libseshat: Sent %d bytes (size of struct %d)\n", bytes_sent, (int ) sizeof(wrp_msg_t));
     }
