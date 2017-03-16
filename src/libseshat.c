@@ -56,7 +56,7 @@ bool lib_seshat_is_initialized(void);
 char *discover_service_data(const char *service);
 int register_service_(const char *service);
 bool send_message(int wrp_request, const char *service, char *uuid);
-int wait_for_reply(char **buf);
+int wait_for_reply(char **buf, char *uuid_str);
 
 
 /*----------------------------------------------------------------------------*/
@@ -161,7 +161,7 @@ char *discover_service_data(const char *service)
     
     if (send_message(WRP_MSG_TYPE__RETREIVE, service, uuid_str)) {
         char *buf = NULL;
-        if (wait_for_reply(&buf) > 0) {
+        if (wait_for_reply(&buf, uuid_str) > 0) {
            // char *url = NULL;
             // transaction_uuid in reply must match the request
            // parse buffer which is a wrp message, and get the URL
@@ -185,7 +185,7 @@ int register_service_(const char *service)
     uuid_unparse_lower(uuid, uuid_str);
     bool result = send_message(WRP_MSG_TYPE__SVC_REGISTRATION, service, uuid_str);
 
-    if (wait_for_reply(&buf) > 0) {
+    if (wait_for_reply(&buf, uuid_str) > 0) {
        // char *url = NULL;
        // transaction_uuid in reply must match the request
        // result = parse buffer which is a wrp message
@@ -235,12 +235,18 @@ bool send_message(int wrp_request, const char *service, char *uuid)
  * caller {char *buf; wait_for_reply(&buf);}
  * caller must free *buf with nn_freemsg()
  */
-int wait_for_reply(char **buf) 
+int wait_for_reply(char **buf, char *uuid) 
 {
     int bytes;
-
     bytes = nn_recv (__scoket_handle_, buf, NN_MSG, 0);
     
-    return bytes;
+    if ((0 < bytes) && ((wrp_msg_t *)buf)->u.crud.transaction_uuid && 
+        ((wrp_msg_t *)buf)->u.crud.transaction_uuid[0] && 
+        strcmp(uuid, ((wrp_msg_t *)buf)->u.crud.transaction_uuid)) {
+        return bytes;
+    } 
+    
+    nn_freemsg(buf);
+    return 0;
 }
 
