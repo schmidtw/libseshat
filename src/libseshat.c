@@ -152,6 +152,7 @@ char *discover_service_data(const char *service)
 {
     uuid_t uuid;
     char uuid_str[128];
+    char *response = NULL;
     
     assert(service);
     
@@ -162,34 +163,44 @@ char *discover_service_data(const char *service)
     if (send_message(WRP_MSG_TYPE__RETREIVE, service, uuid_str)) {
         char *buf = NULL;
         if (wait_for_reply(&buf, uuid_str) > 0) {
-           // char *url = NULL;
-            // transaction_uuid in reply must match the request
-           // parse buffer which is a wrp message, and get the URL
-           // allocate memory for URL
-           // compare UUID in reply message
-            nn_freemsg(buf);
-            // return url;
-        }
+            wrp_msg_t *msg = (wrp_msg_t *) buf;
+            
+            if (200 == msg->u.auth.status && 
+                WRP_MSG_TYPE__RETREIVE == msg->msg_type)
+            {
+              size_t str_len = strlen(msg->u.crud.payload) + 1;
+              response = (char *) malloc(str_len);
+              strcpy(response, msg->u.crud.payload);
+            }
+        free(msg->u.crud.transaction_uuid);
+        nn_freemsg(buf);
+       }
     }
-    return NULL;
+    return response;
 }
 
 int register_service_(const char *service)
 {
-    char *buf = NULL;
     uuid_t uuid;
     char uuid_str[128];
+    bool result;
+    char *buf;
     
     bzero(uuid_str, 128);
     uuid_generate_time_safe(uuid);
     uuid_unparse_lower(uuid, uuid_str);
-    bool result = send_message(WRP_MSG_TYPE__SVC_REGISTRATION, service, uuid_str);
+    result = send_message(WRP_MSG_TYPE__SVC_REGISTRATION, service, uuid_str);
 
-    if (wait_for_reply(&buf, uuid_str) > 0) {
-       // char *url = NULL;
-       // transaction_uuid in reply must match the request
-       // result = parse buffer which is a wrp message
-       // compare UUID in reply message
+    if (result && wait_for_reply(&buf, uuid_str) > 0) {
+        wrp_msg_t *msg = (wrp_msg_t *) buf;
+
+        if (200 == msg->u.auth.status && 
+            WRP_MSG_TYPE__SVC_REGISTRATION == msg->msg_type)
+        {
+            result = true;
+        }
+        
+        free(msg->u.crud.transaction_uuid);
         nn_freemsg(buf);
     }    
    
@@ -235,14 +246,14 @@ bool send_message(int wrp_request, const char *service, char *uuid)
  * caller {char *buf; wait_for_reply(&buf);}
  * caller must free *buf with nn_freemsg()
  */
-int wait_for_reply(char **buf, char *uuid) 
+int wait_for_reply(char **buf, char *uuid_str) 
 {
     int bytes;
     bytes = nn_recv (__scoket_handle_, buf, NN_MSG, 0);
     
     if ((0 < bytes) && ((wrp_msg_t *)buf)->u.crud.transaction_uuid && 
         ((wrp_msg_t *)buf)->u.crud.transaction_uuid[0] && 
-        strcmp(uuid, ((wrp_msg_t *)buf)->u.crud.transaction_uuid)) {
+        strcmp(uuid_str, ((wrp_msg_t *)buf)->u.crud.transaction_uuid)) {
         return bytes;
     } 
     
