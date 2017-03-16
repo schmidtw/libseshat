@@ -27,6 +27,8 @@
 #include <nanomsg/nn.h>
 #include <nanomsg/pipeline.h>
 #include <nanomsg/reqrep.h>
+#include <uuid/uuid.h>
+
 #include "wrp-c.h"
 
 
@@ -53,7 +55,7 @@ int init_lib_seshat(const char *url);
 bool lib_seshat_is_initialized(void);
 char *discover_service_data(const char *service);
 int register_service_(const char *service);
-bool send_message(int wrp_request, const char *service);
+bool send_message(int wrp_request, const char *service, char *uuid);
 int wait_for_reply(char **buf);
 
 
@@ -148,14 +150,23 @@ bool lib_seshat_is_initialized(void)
 
 char *discover_service_data(const char *service)
 {
+    uuid_t uuid;
+    char uuid_str[128];
+    
     assert(service);
-    if (send_message(WRP_MSG_TYPE__RETREIVE, service)) {
+    
+    bzero(uuid_str, 128);
+    uuid_generate_time_safe(uuid);
+    uuid_unparse_lower(uuid, uuid_str);
+    
+    if (send_message(WRP_MSG_TYPE__RETREIVE, service, uuid_str)) {
         char *buf = NULL;
         if (wait_for_reply(&buf) > 0) {
            // char *url = NULL;
             // transaction_uuid in reply must match the request
            // parse buffer which is a wrp message, and get the URL
            // allocate memory for URL
+           // compare UUID in reply message
             nn_freemsg(buf);
             // return url;
         }
@@ -166,19 +177,26 @@ char *discover_service_data(const char *service)
 int register_service_(const char *service)
 {
     char *buf = NULL;
-    bool result = send_message(WRP_MSG_TYPE__SVC_REGISTRATION, service);
+    uuid_t uuid;
+    char uuid_str[128];
+    
+    bzero(uuid_str, 128);
+    uuid_generate_time_safe(uuid);
+    uuid_unparse_lower(uuid, uuid_str);
+    bool result = send_message(WRP_MSG_TYPE__SVC_REGISTRATION, service, uuid_str);
 
     if (wait_for_reply(&buf) > 0) {
        // char *url = NULL;
        // transaction_uuid in reply must match the request
        // result = parse buffer which is a wrp message
+       // compare UUID in reply message
         nn_freemsg(buf);
     }    
    
     return (result ? 0 : -1);
 }
 
-bool send_message(int wrp_request, const char *service)
+bool send_message(int wrp_request, const char *service, char *uuid)
 {
     wrp_msg_t *msg;
     int bytes_sent;
@@ -199,11 +217,14 @@ bool send_message(int wrp_request, const char *service)
     }
 
     msg->msg_type = wrp_request;
+    msg->u.crud.transaction_uuid = (char *) malloc(strlen(uuid) + 1);
+    strcpy(msg->u.crud.transaction_uuid, uuid);
     
     if ((bytes_sent =  nn_send(__scoket_handle_, msg, sizeof(wrp_msg_t), 0)) > 0) {
         printf("libseshat: Sent %d bytes (size of struct %d)\n", bytes_sent, (int ) sizeof(wrp_msg_t));
     }
 
+    free(msg->u.crud.transaction_uuid);
     free(msg);
     
     return (bytes_sent == (int ) sizeof(wrp_msg_t));
