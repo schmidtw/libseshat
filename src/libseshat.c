@@ -54,8 +54,9 @@ static int __scoket_handle_ = -1;
 int init_lib_seshat(const char *url);
 bool lib_seshat_is_initialized(void);
 char *discover_service_data(const char *service);
-int register_service_(const char *service);
-bool send_message(int wrp_request, const char *service, char *uuid);
+int register_service_(const char *service, const char *url);
+bool send_message(int wrp_request, const char *service,
+                  const char *url, char *uuid);
 int wait_for_reply(char **buf, char *uuid_str);
 
 
@@ -76,7 +77,7 @@ int seshat_register( const char *service, const char *url )
     
     assert(service && url && __current_url_);
     
-    result = register_service_(service);
+    result = register_service_(service, url);
     errno = EAGAIN; // Need to set this appropriately
 
     return result;
@@ -160,7 +161,9 @@ char *discover_service_data(const char *service)
     uuid_generate_time_safe(uuid);
     uuid_unparse_lower(uuid, uuid_str);
     
-    if (send_message(WRP_MSG_TYPE__RETREIVE, service, uuid_str)) {
+    if (send_message(WRP_MSG_TYPE__RETREIVE, service,
+                     (const char *) NULL, uuid_str))
+    {
         char *buf = NULL;
         if (wait_for_reply(&buf, uuid_str) > 0) {
             wrp_msg_t *msg = (wrp_msg_t *) buf;
@@ -179,7 +182,7 @@ char *discover_service_data(const char *service)
     return response;
 }
 
-int register_service_(const char *service)
+int register_service_(const char *service, const char *url)
 {
     uuid_t uuid;
     char uuid_str[128];
@@ -189,7 +192,9 @@ int register_service_(const char *service)
     bzero(uuid_str, 128);
     uuid_generate_time_safe(uuid);
     uuid_unparse_lower(uuid, uuid_str);
-    result = send_message(WRP_MSG_TYPE__SVC_REGISTRATION, service, uuid_str);
+    result = send_message(WRP_MSG_TYPE__SVC_REGISTRATION, service,
+                          url, uuid_str
+                          );
 
     if (result && wait_for_reply(&buf, uuid_str) > 0) {
         wrp_msg_t *msg = (wrp_msg_t *) buf;
@@ -207,7 +212,8 @@ int register_service_(const char *service)
     return (result ? 0 : -1);
 }
 
-bool send_message(int wrp_request, const char *service, char *uuid)
+bool send_message(int wrp_request, const char *service,
+                  const char *url, char *uuid)
 {
     wrp_msg_t *msg;
     int bytes_sent;
@@ -220,7 +226,8 @@ bool send_message(int wrp_request, const char *service, char *uuid)
             msg->u.crud.path = (char *) service;
             break;
         case WRP_MSG_TYPE__SVC_REGISTRATION:
-            msg->u.crud.payload = __current_url_;
+            msg->u.crud.payload = (char *) url;
+            msg->u.crud.path    = (char *) service;
             break;
         default : 
             free(msg);
