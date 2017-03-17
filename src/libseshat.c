@@ -114,8 +114,7 @@ int init_lib_seshat(const char *url) {
     } 
     
     
-    __current_url_ = (char *) malloc(strlen(url) + 1);
-    assert(__current_url_);
+    __current_url_ = strdup(url);
     
     __scoket_handle_ = nn_socket(AF_SP, NN_REQ);
     
@@ -171,9 +170,7 @@ char *discover_service_data(const char *service)
             if (200 == msg->u.auth.status && 
                 WRP_MSG_TYPE__RETREIVE == msg->msg_type)
             {
-              size_t str_len = strlen(msg->u.crud.payload) + 1;
-              response = (char *) malloc(str_len);
-              strcpy(response, msg->u.crud.payload);
+              response = strdup(msg->u.crud.payload);
             }
         free(msg->u.crud.transaction_uuid);
         nn_freemsg(buf);
@@ -235,8 +232,7 @@ bool send_message(int wrp_request, const char *service,
     }
 
     msg->msg_type = wrp_request;
-    msg->u.crud.transaction_uuid = (char *) malloc(strlen(uuid) + 1);
-    strcpy(msg->u.crud.transaction_uuid, uuid);
+    msg->u.crud.transaction_uuid = strdup(uuid);
     
     if ((bytes_sent =  nn_send(__scoket_handle_, msg, sizeof(wrp_msg_t), 0)) > 0) {
         printf("libseshat: Sent %d bytes (size of struct %d)\n", bytes_sent, (int ) sizeof(wrp_msg_t));
