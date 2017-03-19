@@ -99,6 +99,17 @@ ExternalProject_Add(wrp-c
 add_library(libwrp-c STATIC SHARED IMPORTED)
 add_dependencies(libwrp-c wrp-c)
 
+# cimplog external dependency
+#-------------------------------------------------------------------------------
+ExternalProject_Add(cimplog
+    PREFIX ${CMAKE_CURRENT_BINARY_DIR}/_prefix/cimplog
+    GIT_REPOSITORY https://github.com/Comcast/cimplog.git
+    GIT_TAG "master"
+    CMAKE_ARGS += -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} -DBUILD_TESTING=OFF
+)
+add_library(libcimplog STATIC SHARED IMPORTED)
+add_dependencies(libcimplog cimplog)
+
 endif ()
 
 add_subdirectory(src)

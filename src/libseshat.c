@@ -57,7 +57,7 @@ char *discover_service_data(const char *service);
 int register_service_(const char *service, const char *url);
 bool send_message(int wrp_request, const char *service,
                   const char *url, char *uuid);
-int wait_for_reply(char **buf, char *uuid_str);
+int wait_for_reply(wrp_msg_t **msg, char *uuid_str);
 
 
 /*----------------------------------------------------------------------------*/
@@ -163,17 +163,14 @@ char *discover_service_data(const char *service)
     if (send_message(WRP_MSG_TYPE__RETREIVE, service,
                      (const char *) NULL, uuid_str))
     {
-        char *buf = NULL;
-        if (wait_for_reply(&buf, uuid_str) > 0) {
-            wrp_msg_t *msg = (wrp_msg_t *) buf;
-            
+        wrp_msg_t *msg = NULL;
+        if (wait_for_reply(&msg, uuid_str) > 0) {            
             if (200 == msg->u.auth.status && 
                 WRP_MSG_TYPE__RETREIVE == msg->msg_type)
             {
               response = strdup(msg->u.crud.payload);
             }
-        free(msg->u.crud.transaction_uuid);
-        nn_freemsg(buf);
+            wrp_free_struct(msg);
        }
     }
     return response;
@@ -184,7 +181,7 @@ int register_service_(const char *service, const char *url)
     uuid_t uuid;
     char uuid_str[128];
     bool result;
-    char *buf;
+    wrp_msg_t *msg = NULL;
     
     bzero(uuid_str, 128);
     uuid_generate_time_safe(uuid);
@@ -193,17 +190,14 @@ int register_service_(const char *service, const char *url)
                           url, uuid_str
                           );
 
-    if (result && wait_for_reply(&buf, uuid_str) > 0) {
-        wrp_msg_t *msg = (wrp_msg_t *) buf;
-
+    if (result && wait_for_reply(&msg, uuid_str) > 0) {
         if (200 == msg->u.auth.status && 
             WRP_MSG_TYPE__SVC_REGISTRATION == msg->msg_type)
         {
             result = true;
         }
         
-        free(msg->u.crud.transaction_uuid);
-        nn_freemsg(buf);
+        wrp_free_struct(msg);
     }    
    
     return (result ? 0 : -1);
@@ -214,6 +208,8 @@ bool send_message(int wrp_request, const char *service,
 {
     wrp_msg_t *msg;
     int bytes_sent;
+    ssize_t payload_size;
+    char *payload_bytes;
     
     assert(service);
     msg = (wrp_msg_t *) malloc(sizeof(wrp_msg_t));
@@ -234,10 +230,20 @@ bool send_message(int wrp_request, const char *service,
     msg->msg_type = wrp_request;
     msg->u.crud.transaction_uuid = strdup(uuid);
     
-    if ((bytes_sent =  nn_send(__scoket_handle_, msg, sizeof(wrp_msg_t), 0)) > 0) {
-        printf("libseshat: Sent %d bytes (size of struct %d)\n", bytes_sent, (int ) sizeof(wrp_msg_t));
+    payload_size =  wrp_struct_to( (const wrp_msg_t *) msg, WRP_BYTES,
+                                   (void **) &payload_bytes);
+    
+    if (0 >= payload_size) {
+       free(msg->u.crud.transaction_uuid);
+       free(msg);
+       return false;
+    }
+     
+    if ((bytes_sent =  nn_send(__scoket_handle_, payload_bytes, payload_size, 0)) > 0) {
+        printf("libseshat: Sent %d bytes (size of struct %d)\n", bytes_sent, (int ) payload_size);
     }
 
+    free(payload_bytes);
     free(msg->u.crud.transaction_uuid);
     free(msg);
     
@@ -245,22 +251,38 @@ bool send_message(int wrp_request, const char *service,
 }
 
 /*
- * nanomsg allocates memory for buf
- * caller {char *buf; wait_for_reply(&buf);}
- * caller must free *buf with nn_freemsg()
+ * Caller must free msg on success return of 0.
+ * returns -1 on failure 
  */
-int wait_for_reply(char **buf, char *uuid_str) 
+int wait_for_reply(wrp_msg_t **msg, char *uuid_str) 
 {
     int bytes;
-    bytes = nn_recv (__scoket_handle_, buf, NN_MSG, 0);
-    
-    if ((0 < bytes) && ((wrp_msg_t *)buf)->u.crud.transaction_uuid && 
-        ((wrp_msg_t *)buf)->u.crud.transaction_uuid[0] && 
-        strcmp(uuid_str, ((wrp_msg_t *)buf)->u.crud.transaction_uuid)) {
-        return bytes;
-    } 
+    ssize_t wrp_len;
+    char *buf;
+
+    bytes = nn_recv (__scoket_handle_, &buf, NN_MSG, 0);
+
+    if (0 >= bytes) {
+        return -1;
+    }
+   
+    wrp_len = wrp_to_struct ( buf, bytes, WRP_BYTES, msg);
     
     nn_freemsg(buf);
-    return 0;
+
+    if (0 >= wrp_len || (NULL == msg)) {
+        return -1;
+    }
+    
+    if ((*msg)->u.crud.transaction_uuid && 
+        (*msg)->u.crud.transaction_uuid[0] && 
+        strcmp(uuid_str, (*msg)->u.crud.transaction_uuid)) {
+      
+        return 0;
+    } else {
+        wrp_free_struct(*msg);
+    }
+    
+    return -1;
 }
 
