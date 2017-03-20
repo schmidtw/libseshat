@@ -23,6 +23,11 @@
  *  @url     the url to reach the seshat service at (example: "tcp://127.0.0.1:6543")
  *
  *  @return 0 if successful, error otherwise (Use ERRNO values & list them here)
+ * repeated calls with exact same URL will just return 0.
+ */
+/*
+ * For some reason '///' is required otherwise I get a bind error ;-(/!
+ ./server -f foo.txt -u ipc:///tmp/foo.ipc for the server portion.
  */
 int init_lib_seshat (const char *url);
 

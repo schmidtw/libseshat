@@ -45,6 +45,26 @@
 /*----------------------------------------------------------------------------*/
 void test_all( void )
 {
+    // test init routine of the library
+    CU_ASSERT(0 == init_lib_seshat("ipc:///tmp/foo.ipc"));
+    CU_ASSERT(0 == init_lib_seshat("ipc:///tmp/foo.ipc"));
+    CU_ASSERT(0 != init_lib_seshat("ipc:///tmp/foo1.ipc"));
+    
+    CU_ASSERT(NULL == seshat_discover("WebPa"));    
+    CU_ASSERT(NULL != seshat_discover("WebPa"));
+    
+    CU_ASSERT(0 == seshat_register("WebPa1", "https://WebPa1.comcast.com/webpa_"));
+    CU_ASSERT(0 == seshat_register("WebPa1", "https://WebPa1.comcast.com/webpa_"));
+
+    CU_ASSERT(0 == seshat_register("WebPa2", "https://WebPa2.comcast.com/webpa_"));
+    CU_ASSERT(0 == seshat_register("WebPa2", "https://WebPa2.comcast.com/webpa_"));
+    
+    
+    CU_ASSERT(NULL != seshat_discover("WebPa1"));
+    CU_ASSERT(NULL != seshat_discover("WebPa2"));
+
+    CU_ASSERT(0 == shutdown_seshat_lib());
+    
 }
 
 void add_suites( CU_pSuite *suite )

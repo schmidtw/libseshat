@@ -213,6 +213,7 @@ bool send_message(int wrp_request, const char *service,
     
     assert(service);
     msg = (wrp_msg_t *) malloc(sizeof(wrp_msg_t));
+    bzero(msg, sizeof(wrp_msg_t));
     
     switch (wrp_request) {
         case WRP_MSG_TYPE__RETREIVE:
