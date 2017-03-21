@@ -36,7 +36,7 @@
 /*                                   Macros                                   */
 /*----------------------------------------------------------------------------*/
 /* none */
-
+#define UUID_STRING_SIZE (36 + 1)
 /*----------------------------------------------------------------------------*/
 /*                               Data Structures                              */
 /*----------------------------------------------------------------------------*/
@@ -151,12 +151,12 @@ bool lib_seshat_is_initialized(void)
 char *discover_service_data(const char *service)
 {
     uuid_t uuid;
-    char uuid_str[128];
+    char uuid_str[UUID_STRING_SIZE];
     char *response = NULL;
     
     assert(service);
     
-    bzero(uuid_str, 128);
+    bzero(uuid_str, UUID_STRING_SIZE);
     uuid_generate_time_safe(uuid);
     uuid_unparse_lower(uuid, uuid_str);
     
