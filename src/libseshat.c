@@ -169,6 +169,7 @@ char *discover_service_data(const char *service)
                 WRP_MSG_TYPE__RETREIVE == msg->msg_type)
             {
               response = strdup(msg->u.crud.payload);
+              printf("SERVICE: msg->u.crud.payload %s", msg->u.crud.payload);
             }
             wrp_free_struct(msg);
        }
@@ -178,19 +179,14 @@ char *discover_service_data(const char *service)
 
 int register_service_(const char *service, const char *url)
 {
-    uuid_t uuid;
-    char uuid_str[128];
     bool result;
     wrp_msg_t *msg = NULL;
     
-    bzero(uuid_str, 128);
-    uuid_generate_time_safe(uuid);
-    uuid_unparse_lower(uuid, uuid_str);
     result = send_message(WRP_MSG_TYPE__SVC_REGISTRATION, service,
-                          url, uuid_str
+                          url, NULL
                           );
 
-    if (result && wait_for_reply(&msg, uuid_str) > 0) {
+    if (result && wait_for_reply(&msg, NULL) > 0) {
         if (200 == msg->u.auth.status && 
             WRP_MSG_TYPE__SVC_REGISTRATION == msg->msg_type)
         {
@@ -218,10 +214,11 @@ bool send_message(int wrp_request, const char *service,
     switch (wrp_request) {
         case WRP_MSG_TYPE__RETREIVE:
             msg->u.crud.path = (char *) service;
+            msg->u.crud.transaction_uuid = strdup(uuid);
             break;
         case WRP_MSG_TYPE__SVC_REGISTRATION:
-            msg->u.crud.payload = (char *) url;
-            msg->u.crud.path    = (char *) service;
+            msg->u.reg.url             = (char *) url;
+            msg->u.reg.service_name    = (char *) service;
             break;
         default : 
             free(msg);
@@ -229,26 +226,26 @@ bool send_message(int wrp_request, const char *service,
     }
 
     msg->msg_type = wrp_request;
-    msg->u.crud.transaction_uuid = strdup(uuid);
     
     payload_size =  wrp_struct_to( (const wrp_msg_t *) msg, WRP_BYTES,
                                    (void **) &payload_bytes);
     
-    if (0 >= payload_size) {
-       free(msg->u.crud.transaction_uuid);
-       free(msg);
-       return false;
+    if (uuid) {
+        free(msg->u.crud.transaction_uuid);
     }
-     
+    free(msg);
+
+
+    if (0 >= payload_size) {
+        return false;
+    }
+
+    
     if ((bytes_sent =  nn_send(__scoket_handle_, payload_bytes, payload_size, 0)) > 0) {
         printf("libseshat: Sent %d bytes (size of struct %d)\n", bytes_sent, (int ) payload_size);
     }
 
-    free(payload_bytes);
-    free(msg->u.crud.transaction_uuid);
-    free(msg);
-    
-    return (bytes_sent == (int ) sizeof(wrp_msg_t));
+    return (bytes_sent == (int ) payload_size);
 }
 
 /*
@@ -260,7 +257,7 @@ int wait_for_reply(wrp_msg_t **msg, char *uuid_str)
     int bytes;
     ssize_t wrp_len;
     char *buf;
-
+    
     bytes = nn_recv (__scoket_handle_, &buf, NN_MSG, 0);
 
     if (0 >= bytes) {
@@ -274,7 +271,11 @@ int wait_for_reply(wrp_msg_t **msg, char *uuid_str)
     if (0 >= wrp_len || (NULL == msg)) {
         return -1;
     }
-    
+ 
+    if (NULL == uuid_str) {
+        return 0;
+    }
+
     if ((*msg)->u.crud.transaction_uuid && 
         (*msg)->u.crud.transaction_uuid[0] && 
         strcmp(uuid_str, (*msg)->u.crud.transaction_uuid)) {
@@ -284,6 +285,6 @@ int wait_for_reply(wrp_msg_t **msg, char *uuid_str)
         wrp_free_struct(*msg);
     }
     
-    return -1;
+    return -1;   
 }
 
