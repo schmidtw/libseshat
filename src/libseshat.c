@@ -86,22 +86,28 @@ int seshat_register( const char *service, const char *url )
 /* See libseshat.h for details. */
 char* seshat_discover( const char *service )
 {
+    char *response = NULL;
     
-    if (0 == lib_seshat_is_initialized()) {
-        if (discover_service_data(service)) {
+         printf("seshat_discover: Enter!\n");
+   
+    if (lib_seshat_is_initialized()) {
+        printf("seshat_discover: sending WRP_MSG_TYPE__RETREIVE!\n");
+        if (NULL != (response = discover_service_data(service))) {
                 errno = EAGAIN; // ?? Who should set this
         } else {
             errno = 0;
         }
+    } else {
+        printf("seshat_discover: lib_seshat_is_initialized FALSE!\n");
     }
 
-    return NULL;
+    return response;
 }
 /*----------------------------------------------------------------------------*/
 /*                             Internal functions                             */
 /*----------------------------------------------------------------------------*/
 int init_lib_seshat(const char *url) {
-    int timeout_val = 5001; // ms
+    int timeout_val = 5001; 
  
     assert(url);
 
@@ -151,29 +157,33 @@ bool lib_seshat_is_initialized(void)
 char *discover_service_data(const char *service)
 {
     uuid_t uuid;
-    char uuid_str[UUID_STRING_SIZE];
+    char *uuid_str;
     char *response = NULL;
     
     assert(service);
     
+    uuid_str = (char *) malloc(UUID_STRING_SIZE);
     bzero(uuid_str, UUID_STRING_SIZE);
     uuid_generate_time_safe(uuid);
     uuid_unparse_lower(uuid, uuid_str);
-    
+       
     if (send_message(WRP_MSG_TYPE__RETREIVE, service,
                      (const char *) NULL, uuid_str))
     {
         wrp_msg_t *msg = NULL;
-        if (wait_for_reply(&msg, uuid_str) > 0) {            
-            if (200 == msg->u.auth.status && 
+        printf("discover_service_data waiting for reply!\n");
+        if (0 == wait_for_reply(&msg, uuid_str)) {   
+            printf("discover_service_data: got %d\n", msg->u.crud.status);
+            if (200 == msg->u.crud.status && 
                 WRP_MSG_TYPE__RETREIVE == msg->msg_type)
             {
               response = strdup(msg->u.crud.payload);
-              printf("SERVICE: msg->u.crud.payload %s", msg->u.crud.payload);
+              printf("SERVICE: msg->u.crud.payload %s", response);
             }
             wrp_free_struct(msg);
        }
     }
+    
     return response;
 }
 
@@ -204,7 +214,7 @@ bool send_message(int wrp_request, const char *service,
 {
     wrp_msg_t *msg;
     int bytes_sent;
-    ssize_t payload_size;
+    int payload_size;
     char *payload_bytes;
     
     assert(service);
@@ -214,7 +224,12 @@ bool send_message(int wrp_request, const char *service,
     switch (wrp_request) {
         case WRP_MSG_TYPE__RETREIVE:
             msg->u.crud.path = (char *) service;
-            msg->u.crud.transaction_uuid = strdup(uuid);
+            msg->u.crud.transaction_uuid = uuid;
+ /* ??? If source/dest are NULL then wrp_struct_to() works however
+  *     the resulting byte array fails with wrp_to_struct()
+ */  
+            msg->u.crud.source = ""; 
+            msg->u.crud.dest = "";   
             break;
         case WRP_MSG_TYPE__SVC_REGISTRATION:
             msg->u.reg.url             = (char *) url;
@@ -229,17 +244,16 @@ bool send_message(int wrp_request, const char *service,
     
     payload_size =  wrp_struct_to( (const wrp_msg_t *) msg, WRP_BYTES,
                                    (void **) &payload_bytes);
-    
     if (uuid) {
-        free(msg->u.crud.transaction_uuid);
+        free(uuid);
     }
+    
     free(msg);
-
-
-    if (0 >= payload_size) {
+    
+    if (1 > payload_size) {
+        printf("send_message: payload_size less than 1 !!!\n");
         return false;
     }
-
     
     if ((bytes_sent =  nn_send(__scoket_handle_, payload_bytes, payload_size, 0)) > 0) {
         printf("libseshat: Sent %d bytes (size of struct %d)\n", bytes_sent, (int ) payload_size);
@@ -261,6 +275,7 @@ int wait_for_reply(wrp_msg_t **msg, char *uuid_str)
     bytes = nn_recv (__scoket_handle_, &buf, NN_MSG, 0);
 
     if (0 >= bytes) {
+        printf("wait_for_reply() nn_recv failed\n");
         return -1;
     }
    
@@ -269,13 +284,14 @@ int wait_for_reply(wrp_msg_t **msg, char *uuid_str)
     nn_freemsg(buf);
 
     if (0 >= wrp_len || (NULL == msg)) {
+        printf("wait_for_reply() wrp_to_struct failed\n");        
         return -1;
     }
  
     if (NULL == uuid_str) {
         return 0;
     }
-
+#if 1
     if ((*msg)->u.crud.transaction_uuid && 
         (*msg)->u.crud.transaction_uuid[0] && 
         strcmp(uuid_str, (*msg)->u.crud.transaction_uuid)) {
@@ -284,7 +300,7 @@ int wait_for_reply(wrp_msg_t **msg, char *uuid_str)
     } else {
         wrp_free_struct(*msg);
     }
-    
-    return -1;   
+#endif
+   return -1;   
 }
 
