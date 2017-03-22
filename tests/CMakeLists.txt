@@ -22,7 +22,7 @@ add_executable(simple simple.c ../src/libseshat.c)
 set_property(TARGET simple PROPERTY C_STANDARD 99)
 
 target_link_libraries (simple 
--lmsgpackc -ltrower-base64 -lnanomsg -luuid -lwrp-c -lcimplog)
+-lmsgpackc -lnanomsg -luuid -lwrp-c -lcimplog -ltrower-base64 )
 
 target_link_libraries (simple gcov)
 target_link_libraries (simple cunit)
