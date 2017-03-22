@@ -18,6 +18,27 @@
 #define __LIBSESHAT_H__
 
 /**
+ *  Initialize libseshat with a URL used to start seshat itself
+ *
+ *  @url     the url to reach the seshat service at (example: "tcp://127.0.0.1:6543")
+ *
+ *  @return 0 if successful, error otherwise (Use ERRNO values & list them here)
+ * repeated calls with exact same URL will just return 0.
+ */
+/*
+ * For some reason '///' is required otherwise I get a bind error ;-(/!
+ ./server -f foo.txt -u ipc:///tmp/foo.ipc for the server portion.
+ */
+int init_lib_seshat (const char *url);
+
+/**
+ *  Shutdown and cleanup libseshat
+ *
+ *  @return 0 if successful, error otherwise (Use ERRNO values & list them here)
+ */
+int shutdown_seshat_lib (void);
+
+/**
  *  Registers a service with Seshat.
  *
  *  @service the service name to register with Seshat (example: "webpa")
@@ -33,7 +54,8 @@ int seshat_register(const char *service, const char *url);
  *  @service the service to find the url for
  *
  *  @return the url of the service if available, NULL otherwise.
- *  Use & set stderr for what the error is.
+ *  Use ERRNO values & list them here
+ *  Caller MUST free the URL
  */
 char* seshat_discover(const char *service);
 
