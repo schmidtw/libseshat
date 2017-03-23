@@ -163,7 +163,7 @@ char *discover_service_data(const char *service)
     assert(service);
     
     uuid_str = (char *) malloc(UUID_STRING_SIZE);
-    bzero(uuid_str, UUID_STRING_SIZE);
+    memset(uuid_str, 0, UUID_STRING_SIZE);
     uuid_generate_time_safe(uuid);
     uuid_unparse_lower(uuid, uuid_str);
        
@@ -219,7 +219,7 @@ bool send_message(int wrp_request, const char *service,
     
     assert(service);
     msg = (wrp_msg_t *) malloc(sizeof(wrp_msg_t));
-    bzero(msg, sizeof(wrp_msg_t));
+    memset(msg, 0, sizeof(wrp_msg_t));
     
     switch (wrp_request) {
         case WRP_MSG_TYPE__RETREIVE:
