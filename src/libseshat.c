@@ -174,8 +174,8 @@ char *discover_service_data(const char *service)
         printf("discover_service_data waiting for reply!\n");
         if (0 == wait_for_reply(&msg, uuid_str)) {   
             printf("discover_service_data: got %d\n", msg->u.crud.status);
-            if (200 == msg->u.crud.status && 
-                WRP_MSG_TYPE__RETREIVE == msg->msg_type)
+            if (WRP_MSG_TYPE__RETREIVE == msg->msg_type && 
+                200 == msg->u.crud.status)
             {
               response = strdup(msg->u.crud.payload);
               printf("SERVICE: msg->u.crud.payload %s", response);
@@ -223,13 +223,15 @@ bool send_message(int wrp_request, const char *service,
     
     switch (wrp_request) {
         case WRP_MSG_TYPE__RETREIVE:
-            msg->u.crud.path = (char *) service;
-            msg->u.crud.transaction_uuid = uuid;
+            msg->u.crud.path = strdup(service);
+            msg->u.crud.transaction_uuid = strdup(uuid);
  /* ??? If source/dest are NULL then wrp_struct_to() works however
   *     the resulting byte array fails with wrp_to_struct()
  */  
-            msg->u.crud.source = ""; 
-            msg->u.crud.dest = "";   
+            msg->u.crud.source  = strdup("Bazinga");
+            msg->u.crud.dest    = strdup("Agnizab");           
+            msg->u.crud.payload = strdup(service);
+            
             break;
         case WRP_MSG_TYPE__SVC_REGISTRATION:
             msg->u.reg.url             = (char *) url;
