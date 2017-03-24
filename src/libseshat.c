@@ -228,8 +228,8 @@ bool send_message(int wrp_request, const char *service,
  /* ??? If source/dest are NULL then wrp_struct_to() works however
   *     the resulting byte array fails with wrp_to_struct()
  */  
-            msg->u.crud.source  = strdup("Bazinga");
-            msg->u.crud.dest    = strdup("Agnizab");           
+            msg->u.crud.source  = strdup("lib://libseshat");
+            msg->u.crud.dest    = strdup(__current_url_);
             msg->u.crud.payload = strdup(service);
             
             break;
