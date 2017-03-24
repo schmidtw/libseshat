@@ -88,17 +88,12 @@ char* seshat_discover( const char *service )
 {
     char *response = NULL;
     
-         printf("seshat_discover: Enter!\n");
-   
     if (lib_seshat_is_initialized()) {
-        printf("seshat_discover: sending WRP_MSG_TYPE__RETREIVE!\n");
         if (NULL != (response = discover_service_data(service))) {
                 errno = EAGAIN; // ?? Who should set this
         } else {
             errno = 0;
         }
-    } else {
-        printf("seshat_discover: lib_seshat_is_initialized FALSE!\n");
     }
 
     return response;
@@ -128,14 +123,12 @@ int init_lib_seshat(const char *url) {
     
     if (0 != nn_setsockopt (__scoket_handle_, NN_SOL_SOCKET, NN_RCVTIMEO,
             &timeout_val, sizeof(timeout_val))) {
-        printf("libseshat: Failed to set wait time out!\n");
         free(__current_url_);
         __current_url_ = NULL;
         return -1;
     }    
     
     if (nn_connect(__scoket_handle_, __current_url_) < 0) {
-        printf("libseshat:Socket connect failed!\n");
         nn_shutdown(__scoket_handle_, 0);
         free(__current_url_);
         __current_url_ = NULL;
@@ -171,14 +164,11 @@ char *discover_service_data(const char *service)
                      (const char *) NULL, uuid_str))
     {
         wrp_msg_t *msg = NULL;
-        printf("discover_service_data waiting for reply!\n");
         if (0 == wait_for_reply(&msg, uuid_str)) {   
-            printf("discover_service_data: got %d\n", msg->u.crud.status);
             if (WRP_MSG_TYPE__RETREIVE == msg->msg_type && 
                 200 == msg->u.crud.status)
             {
               response = strdup(msg->u.crud.payload);
-              printf("SERVICE: msg->u.crud.payload %s", response);
             }
             wrp_free_struct(msg);
        }
@@ -253,7 +243,6 @@ bool send_message(int wrp_request, const char *service,
     free(msg);
     
     if (1 > payload_size) {
-        printf("send_message: payload_size less than 1 !!!\n");
         return false;
     }
     
