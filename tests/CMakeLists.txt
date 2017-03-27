@@ -21,8 +21,7 @@ set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fprofile-arcs -ftest-cov
 add_executable(simple simple.c ../src/libseshat.c)
 set_property(TARGET simple PROPERTY C_STANDARD 99)
 
-target_link_libraries (simple 
--lmsgpackc -lnanomsg -luuid -lwrp-c -lcimplog -ltrower-base64 )
+target_link_libraries (simple  -lwrp-c -lmsgpackc -ltrower-base64 -lnanomsg -luuid -lcimplog)
 
 target_link_libraries (simple gcov)
 target_link_libraries (simple cunit)
